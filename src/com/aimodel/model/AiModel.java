@@ -3,6 +3,11 @@ package com.aimodel.model;
 import java.util.ArrayList;
 
 /**
+ *
+ * @author Aaviskar
+ */
+
+/**
  * Represents the main model for managing AI model data and tracking recent actions.
  */
 public class AiModel {

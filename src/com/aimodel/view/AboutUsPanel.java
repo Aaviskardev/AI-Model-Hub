@@ -4,6 +4,11 @@ import javax.swing.*;
 import java.awt.*;
 
 /**
+ *
+ * @author Aaviskar
+ */
+
+/**
  * AboutUsPanel is a JPanel that displays information about the application.
  * It includes navigation buttons and a brief description of the application's purpose.
  */

@@ -12,6 +12,12 @@ import javafx.application.Platform;
 import javafx.embed.swing.JFXPanel;
 import javafx.scene.Scene;
 
+
+/**
+ *
+ * @author Aaviskar
+ */
+
 /**
  * HomePage class represents the main window of the AI Model application.
  * It uses CardLayout to manage navigation between different panels.

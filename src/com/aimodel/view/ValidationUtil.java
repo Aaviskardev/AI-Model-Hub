@@ -9,6 +9,11 @@ import javafx.application.Platform;
 import javafx.stage.Window;
 
 /**
+ *
+ * @author Aaviskar
+ */
+
+/**
  * Utility class for validating input fields in the application.
  */
 public class ValidationUtil {
