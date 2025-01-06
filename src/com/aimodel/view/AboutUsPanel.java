@@ -5,9 +5,8 @@ import java.awt.*;
 
 /**
  *
- * @author Aaviskar
+ * @author Aaviskar  23048648
  */
-
 /**
  * AboutUsPanel is a JPanel that displays information about the application.
  * It includes navigation buttons and a brief description of the application's purpose.
@@ -66,12 +65,14 @@ public class AboutUsPanel extends JPanel {
         JLayeredPane layeredPane = new JLayeredPane();
         layeredPane.setLayout(null);
         layeredPane.setPreferredSize(new Dimension(1000, 600));
+        layeredPane.setBackground(new Color(255, 255, 255));
 
         // Create a content panel to hold the components
         contentPanel = new JPanel();
         contentPanel.setLayout(null);
         contentPanel.setOpaque(false);
         contentPanel.setBounds(0, 0, 1000, 600);
+        contentPanel.setBackground(new Color(255, 255, 255));
 
         // Brand logo
         ImageIcon brandLogoIcon = new ImageIcon(getClass().getResource("/com/aimodel/resources/brandlogo.png"));

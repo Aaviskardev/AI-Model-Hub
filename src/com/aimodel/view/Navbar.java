@@ -18,7 +18,7 @@ import javafx.collections.FXCollections;
 
 /**
  *
- * @author Aaviskar
+ * @author Aaviskar  23048648
  */
 
 public class Navbar extends HBox {

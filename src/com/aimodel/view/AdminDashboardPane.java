@@ -2,6 +2,7 @@
 package com.aimodel.view;
 
 import com.aimodel.model.AiModel;
+import com.aimodel.util.CustomStack;
 import javafx.animation.*;
 import javafx.collections.FXCollections;
 import javafx.geometry.*;
@@ -14,12 +15,9 @@ import javafx.scene.paint.*;
 import javafx.scene.shape.*;
 import javafx.stage.Modality;
 import javafx.util.Duration;
-import java.util.*;
+import com.aimodel.util.ValidationUtil;
 
-/**
- *
- * @author Aaviskar
- */
+import java.util.*;
 
 /**
  * AdminDashboardPane is a JavaFX BorderPane that represents the admin dashboard.
@@ -31,15 +29,16 @@ public class AdminDashboardPane extends BorderPane {
     private TableView<AiModel.ModelData> modelTable;
     private final Runnable onLogout;
     private ListView<String> recentActionsList;
-    private AiModel aiModel;
-    private List<String> deletedModelNames;
+    private final AiModel aiModel;
+
     private StackPane contentWrapper;
     private VBox sideNav;
-    private HomePage.NavigationHandler navHandler;
+    private final HomePage.NavigationHandler navHandler;
     private ScrollPane scrollPane;
     private Label totalModelsValueLabel; // Label to display total models
     private Label activeModelsValueLabel; // Label to display active models
     private ModelUpdateListener modelUpdateListener;
+    private final CustomStack<String> recentActionsStack;
 
     // Modern UI Constants
     private static final String FONT_FAMILY = "SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI";
@@ -64,13 +63,13 @@ public class AdminDashboardPane extends BorderPane {
     public AdminDashboardPane(Runnable onLogout, AiModel aiModel, HomePage.NavigationHandler navHandler) {
         this.onLogout = onLogout;
         this.aiModel = aiModel;
-        this.deletedModelNames = new ArrayList<>();
+
+        this.recentActionsStack = new CustomStack<>();
         this.navHandler = navHandler;
         setPrefSize(1200, 800);
         initializeUI();
     }
-    
-    
+
     /**
      * Interface for listening to model updates.
      */
@@ -86,7 +85,6 @@ public class AdminDashboardPane extends BorderPane {
     public void setModelUpdateListener(ModelUpdateListener listener) {
         this.modelUpdateListener = listener;
     }
-    
 
     /**
      * Initializes the user interface.
@@ -101,7 +99,7 @@ public class AdminDashboardPane extends BorderPane {
 
         // Create main layout
         contentWrapper = new StackPane();
-        contentWrapper.setPadding(new Insets(30));
+        contentWrapper.setPadding(new Insets(40));
 
         // Create and setup side navigation
         createSideNavigation();
@@ -170,7 +168,7 @@ public class AdminDashboardPane extends BorderPane {
 
         sideNav.getChildren().addAll(brandLabel, navItems, spacer, logoutBtn);
     }
-    
+
     /**
      * Creates a navigation button with the given text and SVG path.
      *
@@ -255,24 +253,15 @@ public class AdminDashboardPane extends BorderPane {
     private HBox createHeader() {
         HBox header = new HBox();
         header.setAlignment(Pos.CENTER_LEFT);
+        header.setPadding(new Insets(15, 0, 0, 0));
         header.setSpacing(20);
-
-        Label title = new Label("Dashboard");
-        title.setStyle(String.format(
-                "-fx-font-family: '%s'; " +
-                        "-fx-font-size: 32px; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-text-fill: %s;",
-                FONT_FAMILY,
-                TEXT_PRIMARY.toString().replace("0x", "#")
-        ));
 
         Region spacer = new Region();
         HBox.setHgrow(spacer, Priority.ALWAYS);
 
         Button addModelBtn = createPrimaryButton("+ Add New Model", e -> showAddModelDialog());
 
-        header.getChildren().addAll(title, spacer, addModelBtn);
+        header.getChildren().addAll(spacer, addModelBtn);
         return header;
     }
 
@@ -323,6 +312,9 @@ public class AdminDashboardPane extends BorderPane {
         container.setVgap(20);
         container.setAlignment(Pos.CENTER_LEFT);
 
+        // Add padding to the container
+        container.setPadding(new Insets(20, 20, 20, 20)); // Add 20 pixels padding on all sides
+
         // Create labels for total and active models (initialize to 0)
         totalModelsValueLabel = new Label("0");
         activeModelsValueLabel = new Label("0");
@@ -371,14 +363,15 @@ public class AdminDashboardPane extends BorderPane {
      * @return           A styled VBox representing the statistics card.
      */
     private VBox createStatsCard(String title, Label valueLabel, String svgPath) {
-        VBox card = new VBox(12);
-        card.setPadding(new Insets(24));
-        card.setPrefWidth(300);
+        VBox card = new VBox(10);
+        card.setPadding(new Insets(20, 20, 20, 40));
+        card.setPrefWidth(200);
         card.setStyle(String.format(
                 "-fx-background-color: white; " +
                         "-fx-background-radius: 16; " +
                         "-fx-effect: dropshadow(gaussian, rgba(0,0,0,0.08), 15, 0, 0, 2); " +
                         "-fx-border-color: %s; " +
+                        "-fx-padding: 8 16; " +
                         "-fx-border-radius: 16; " +
                         "-fx-border-width: 1;",
                 BORDER_COLOR.toString().replace("0x", "#")
@@ -537,9 +530,6 @@ public class AdminDashboardPane extends BorderPane {
         column.setPrefWidth(width);
         column.setStyle("-fx-alignment: CENTER-LEFT;");
 
-        // Style header
-        column.setGraphic(createColumnHeader(title));
-
         // Style cells
         column.setCellFactory(col -> {
             TableCell<AiModel.ModelData, T> cell = new TableCell<>() {
@@ -567,25 +557,6 @@ public class AdminDashboardPane extends BorderPane {
         });
 
         return column;
-    }
-
-    /**
-     * Creates a header label for a table column.
-     *
-     * @param text The text of the header.
-     * @return     A styled Label for the column header.
-     */
-    private Label createColumnHeader(String text) {
-        Label header = new Label(text);
-        header.setStyle(String.format(
-                "-fx-font-family: '%s'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-text-fill: %s;",
-                FONT_FAMILY,
-                TEXT_SECONDARY.toString().replace("0x", "#")
-        ));
-        return header;
     }
 
     /**
@@ -728,13 +699,50 @@ public class AdminDashboardPane extends BorderPane {
             }
         });
 
-        // Populate recent actions from AiModel
-        recentActionsList.setItems(FXCollections.observableArrayList(aiModel.getRecentActions()));
+        recentActionsList.setItems(FXCollections.observableArrayList(getRecentActionsFromStack()));
 
         VBox.setVgrow(recentActionsList, Priority.ALWAYS);
         card.getChildren().addAll(title, recentActionsList);
 
         return card;
+    }
+
+    /**
+     * Adds a recent action to the recent actions list (now using the stack).
+     *
+     * @param action The action to be added.
+     */
+    private void addRecentAction(String action) {
+        recentActionsStack.push(action); // Push onto the stack
+        refreshRecentActionsList(); // Update the ListView
+    }
+
+    /**
+     * Gets recent actions from the stack (up to 10).
+     * @return A list of recent actions.
+     */
+    private List<String> getRecentActionsFromStack() {
+        List<String> actions = new ArrayList<>();
+        CustomStack<String> tempStack = new CustomStack<>();
+
+        // Get up to 10 actions
+        for (int i = 0; i < 10 && !recentActionsStack.isEmpty(); i++) {
+            String action = recentActionsStack.pop();
+            actions.add(action);
+            tempStack.push(action);
+        }
+
+        // Restore the original stack
+        while (!tempStack.isEmpty()) {
+            recentActionsStack.push(tempStack.pop());
+        }
+
+        Collections.reverse(actions);
+        return actions;
+    }
+
+    private void refreshRecentActionsList() {
+        recentActionsList.setItems(FXCollections.observableArrayList(getRecentActionsFromStack()));
     }
 
     /**
@@ -756,9 +764,178 @@ public class AdminDashboardPane extends BorderPane {
         parallel.play();
     }
 
+    
+    
+    
+    
+
     /**
-     * Shows the dialog for adding a new model.
+     * Shows the dialog for editing an existing model.
+     *
+     * @param model The model to be edited.
      */
+ 
+
+
+    private HBox createFormField(String labelText, TextField field, Label validationLabel) {
+        // Create container
+        HBox hbox = new HBox();
+        hbox.setAlignment(Pos.CENTER_LEFT);
+        hbox.setSpacing(15);
+        hbox.setPrefHeight(40); // Fixed height for consistent spacing
+
+        // Create and configure label
+        Label label = new Label(labelText);
+        label.setStyle(String.format(
+            "-fx-font-family: '%s'; " +
+            "-fx-font-size: 14px; " +
+            "-fx-font-weight: bold; " +
+            "-fx-text-fill: %s;",
+            FONT_FAMILY,
+            TEXT_PRIMARY.toString().replace("0x", "#")
+        ));
+        label.setPrefWidth(120); // Fixed width for label alignment
+        label.setAlignment(Pos.CENTER_LEFT);
+
+        // Configure field
+        field.setPrefWidth(250); // Fixed width for text fields
+
+        // Configure validation label
+        validationLabel.setPrefWidth(200); // Fixed width for validation messages
+        validationLabel.setTextFill(ERROR_COLOR);
+        validationLabel.setWrapText(true);
+
+        // Add all components
+        hbox.getChildren().addAll(label, field, validationLabel);
+
+        return hbox;
+    }
+
+//    private void showAddModelDialog() {
+//        Dialog<AiModel.ModelData> dialog = new Dialog<>();
+//        dialog.setTitle("Add New Model");
+//        dialog.initModality(Modality.APPLICATION_MODAL);
+//
+//        // Create the custom dialog pane
+//        DialogPane dialogPane = dialog.getDialogPane();
+//        dialogPane.setPrefWidth(700); // Set fixed width for dialog
+//        dialogPane.setStyle(String.format(
+//            "-fx-background-color: white; " +
+//            "-fx-padding: 24; " +
+//            "-fx-font-family: '%s';",
+//            FONT_FAMILY
+//        ));
+//
+//        // Form fields
+//        TextField idField = createStyledTextField("Enter model ID");
+//        Label idValidationLabel = new Label();
+//
+//        TextField nameField = createStyledTextField("Enter model name");
+//        Label nameValidationLabel = new Label();
+//
+//        TextField modalityField = createStyledTextField("Enter modality");
+//        Label modalityValidationLabel = new Label();
+//
+//        TextField latencyField = createStyledTextField("Enter latency in ms");
+//        Label latencyValidationLabel = new Label();
+//
+//        TextField costPerTokenField = createStyledTextField("Enter cost per token");
+//        Label costValidationLabel = new Label();
+//
+//        TextField apiProviderField = createStyledTextField("Enter API provider");
+//        Label apiProviderValidationLabel = new Label();
+//
+//        // Add validation listeners
+//        addValidationListener(idField, idValidationLabel, 
+//            () -> ValidationUtil.validateIdField(idField, aiModel, idValidationLabel));
+//        addValidationListener(nameField, nameValidationLabel, 
+//            () -> ValidationUtil.validateNameField(nameField, nameValidationLabel));
+//        addValidationListener(modalityField, modalityValidationLabel, 
+//            () -> ValidationUtil.validateModalityField(modalityField, modalityValidationLabel));
+//        addValidationListener(latencyField, latencyValidationLabel, 
+//            () -> ValidationUtil.validateLatencyField(latencyField, latencyValidationLabel));
+//        addValidationListener(costPerTokenField, costValidationLabel, 
+//            () -> ValidationUtil.validateCostField(costPerTokenField, costValidationLabel));
+//        addValidationListener(apiProviderField, apiProviderValidationLabel, 
+//            () -> ValidationUtil.validateProviderField(apiProviderField, apiProviderValidationLabel));
+//
+//        // Create content layout
+//        VBox content = new VBox(20); // Increased spacing between fields
+//        content.setPadding(new Insets(10));
+//        content.setStyle("-fx-background-color: white;");
+//
+//        // Add form fields
+//        content.getChildren().addAll(
+//            createFormField("Model ID", idField, idValidationLabel),
+//            createFormField("Model Name", nameField, nameValidationLabel),
+//            createFormField("Modality", modalityField, modalityValidationLabel),
+//            createFormField("Latency (ms)", latencyField, latencyValidationLabel),
+//            createFormField("Cost Per Token", costPerTokenField, costValidationLabel),
+//            createFormField("API Provider", apiProviderField, apiProviderValidationLabel)
+//        );
+//
+//        // Add content to dialog
+//        ScrollPane scrollPane = new ScrollPane(content);
+//        scrollPane.setFitToWidth(true);
+//        scrollPane.setStyle("-fx-background-color: white;");
+//        dialogPane.setContent(scrollPane);
+//
+//        // Add buttons
+//        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
+//        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
+//        dialogPane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
+//
+//        // Style buttons
+//        Button saveButton = (Button) dialogPane.lookupButton(saveButtonType);
+//        Button cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
+//        styleDialogButton(saveButton, PRIMARY_COLOR);
+//        styleDialogButton(cancelButton, TEXT_SECONDARY);
+//
+//        // Initially disable save button
+//        saveButton.setDisable(true);
+//
+//        // Enable save button when all fields are valid
+//        TextField[] fields = {idField, nameField, modalityField, latencyField, costPerTokenField, apiProviderField};
+//        for (TextField field : fields) {
+//            field.textProperty().addListener((obs, old, newVal) -> 
+//                saveButton.setDisable(!areAllFieldsValid(fields)));
+//        }
+//
+//        // Handle result conversion
+//        dialog.setResultConverter(dialogButton -> {
+//            if (dialogButton == saveButtonType && areAllFieldsValid(fields)) {
+//                try {
+//                    return new AiModel.ModelData(
+//                        idField.getText(),
+//                        nameField.getText(),
+//                        modalityField.getText(),
+//                        Integer.parseInt(latencyField.getText()),
+//                        Double.parseDouble(costPerTokenField.getText()),
+//                        apiProviderField.getText()
+//                    );
+//                } catch (NumberFormatException e) {
+//                    return null;
+//                }
+//            }
+//            return null;
+//        });
+//
+//        // Show dialog and handle result
+//        Optional<AiModel.ModelData> result = dialog.showAndWait();
+//        result.ifPresent(newModel -> {
+//            aiModel.addModel(newModel);
+//            modelTable.getItems().add(newModel);
+//            addRecentAction("Added new model: " + newModel.getName());
+//            showSuccessAlert("Model added successfully!");
+//            updateModelCounts();
+//
+//            if (modelUpdateListener != null) {
+//                modelUpdateListener.onModelUpdated();
+//            }
+//        });
+//    }
+    
+
     private void showAddModelDialog() {
         Dialog<AiModel.ModelData> dialog = new Dialog<>();
         dialog.setTitle("Add New Model");
@@ -766,34 +943,111 @@ public class AdminDashboardPane extends BorderPane {
 
         // Create the custom dialog pane
         DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setPrefWidth(700);
         dialogPane.setStyle(String.format(
-                "-fx-background-color: white; " +
-                        "-fx-padding: 24; " +
-                        "-fx-font-family: '%s';",
-                FONT_FAMILY
+            "-fx-background-color: white; " +
+            "-fx-padding: 24; " +
+            "-fx-font-family: '%s';",
+            FONT_FAMILY
         ));
 
         // Form fields
-        TextField idField = createStyledTextField("Model ID");
-        TextField nameField = createStyledTextField("Model Name");
-        TextField modalityField = createStyledTextField("Modality");
-        TextField latencyField = createStyledTextField("Latency (ms)");
-        TextField costPerTokenField = createStyledTextField("Cost Per Token");
-        TextField apiProviderField = createStyledTextField("API Provider");
+        TextField idField = createStyledTextField("Enter model ID");
+        Label idValidationLabel = new Label();
 
-        // Layout
-        VBox content = new VBox(16);
+        TextField nameField = createStyledTextField("Enter model name");
+        Label nameValidationLabel = new Label();
+
+        TextField modalityField = createStyledTextField("Enter modality");
+        Label modalityValidationLabel = new Label();
+
+        TextField latencyField = createStyledTextField("Enter latency in ms");
+        Label latencyValidationLabel = new Label();
+
+        TextField costPerTokenField = createStyledTextField("Enter cost per token");
+        Label costValidationLabel = new Label();
+
+        TextField apiProviderField = createStyledTextField("Enter API provider");
+        Label apiProviderValidationLabel = new Label();
+
+        // Create map to track validation status
+        Map<TextField, Boolean> validationStatus = new HashMap<>();
+        validationStatus.put(idField, false);
+        validationStatus.put(nameField, false);
+        validationStatus.put(modalityField, false);
+        validationStatus.put(latencyField, false);
+        validationStatus.put(costPerTokenField, false);
+        validationStatus.put(apiProviderField, false);
+
+        // Function to check if all fields are valid
+        Runnable updateSaveButtonState = () -> {
+            Button saveButton = (Button) dialogPane.lookupButton(
+                dialogPane.getButtonTypes().stream()
+                    .filter(bt -> bt.getButtonData() == ButtonBar.ButtonData.OK_DONE)
+                    .findFirst()
+                    .get()
+            );
+            boolean allValid = validationStatus.values().stream().allMatch(valid -> valid);
+            saveButton.setDisable(!allValid);
+        };
+
+        // Add validation listeners
+        idField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(idField, 
+                ValidationUtil.validateIdField(idField, aiModel, idValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        nameField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(nameField, 
+                ValidationUtil.validateNameField(nameField, nameValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        modalityField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(modalityField, 
+                ValidationUtil.validateModalityField(modalityField, modalityValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        latencyField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(latencyField, 
+                ValidationUtil.validateLatencyField(latencyField, latencyValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        costPerTokenField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(costPerTokenField, 
+                ValidationUtil.validateCostField(costPerTokenField, costValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        apiProviderField.textProperty().addListener((obs, oldVal, newVal) -> {
+            validationStatus.put(apiProviderField, 
+                ValidationUtil.validateProviderField(apiProviderField, apiProviderValidationLabel));
+            updateSaveButtonState.run();
+        });
+
+        // Create content layout
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: white;");
+
+        // Add form fields
         content.getChildren().addAll(
-                createFormLabel("Model ID"), idField,
-                createFormLabel("Model Name"), nameField,
-                                createFormLabel("Modality"), modalityField,
-                createFormLabel("Latency (ms)"), latencyField,
-                createFormLabel("Cost Per Token"), costPerTokenField,
-                createFormLabel("API Provider"), apiProviderField
-
+            createFormField("Model ID", idField, idValidationLabel),
+            createFormField("Model Name", nameField, nameValidationLabel),
+            createFormField("Modality", modalityField, modalityValidationLabel),
+            createFormField("Latency (ms)", latencyField, latencyValidationLabel),
+            createFormField("Cost Per Token", costPerTokenField, costValidationLabel),
+            createFormField("API Provider", apiProviderField, apiProviderValidationLabel)
         );
 
-        dialogPane.setContent(content);
+        // Add content to dialog
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: white;");
+        dialogPane.setContent(scrollPane);
 
         // Add buttons
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
@@ -803,53 +1057,40 @@ public class AdminDashboardPane extends BorderPane {
         // Style buttons
         Button saveButton = (Button) dialogPane.lookupButton(saveButtonType);
         Button cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
-
         styleDialogButton(saveButton, PRIMARY_COLOR);
         styleDialogButton(cancelButton, TEXT_SECONDARY);
-        
+
+        // Initially disable save button
+        saveButton.setDisable(true);
+
+        // Trigger initial validation for all fields
+        idField.setText(idField.getText());
+        nameField.setText(nameField.getText());
+        modalityField.setText(modalityField.getText());
+        latencyField.setText(latencyField.getText());
+        costPerTokenField.setText(costPerTokenField.getText());
+        apiProviderField.setText(apiProviderField.getText());
+
+        // Handle result conversion
         dialog.setResultConverter(dialogButton -> {
-            if (dialogButton == saveButtonType) {
-                if (!ValidationUtil.validateIdField(idField, aiModel)) {
-                    // ID is not valid or not unique, prevent dialog closing
-                    return null; 
-                }
-                if (!ValidationUtil.validateNameField(nameField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateModalityField(modalityField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateLatencyField(latencyField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateCostField(costPerTokenField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateProviderField(apiProviderField)) {
-                    return null;
-                }
+            if (dialogButton == saveButtonType && !saveButton.isDisabled()) {
                 try {
-                    int latency = Integer.parseInt(latencyField.getText());
-                    double costPerToken = Double.parseDouble(costPerTokenField.getText());
-                    AiModel.ModelData newModel = new AiModel.ModelData(
-                            idField.getText(),
-                            nameField.getText(),
-                            modalityField.getText(),
-                            latency,
-                            costPerToken,
-                            apiProviderField.getText()
+                    return new AiModel.ModelData(
+                        idField.getText().trim(),
+                        nameField.getText().trim(),
+                        modalityField.getText().trim(),
+                        Integer.parseInt(latencyField.getText().trim()),
+                        Double.parseDouble(costPerTokenField.getText().trim()),
+                        apiProviderField.getText().trim()
                     );
-                    return newModel;
                 } catch (NumberFormatException e) {
-                    ValidationUtil.showTooltip(latencyField, "Invalid number format");
-                    ValidationUtil.showTooltip(costPerTokenField, "Invalid number format");
                     return null;
                 }
             }
             return null;
         });
 
-        // Show dialog and handle result (only add if validation passed)
+        // Show dialog and handle result
         Optional<AiModel.ModelData> result = dialog.showAndWait();
         result.ifPresent(newModel -> {
             aiModel.addModel(newModel);
@@ -858,7 +1099,6 @@ public class AdminDashboardPane extends BorderPane {
             showSuccessAlert("Model added successfully!");
             updateModelCounts();
 
-            // Notify the listener (ViewModelsPane) to refresh
             if (modelUpdateListener != null) {
                 modelUpdateListener.onModelUpdated();
             }
@@ -866,232 +1106,216 @@ public class AdminDashboardPane extends BorderPane {
     }
 
 
+    // Helper method to create styled text field
+    private TextField createStyledTextField(String promptText) {
+        TextField field = new TextField();
+        field.setPromptText(promptText);
+        field.setStyle(
+            "-fx-padding: 8 12; " +
+            "-fx-background-radius: 4; " +
+            "-fx-border-radius: 4; " +
+            "-fx-border-color: #E0E0E0; " +
+            "-fx-border-width: 1px;"
+        );
+        return field;
+    }
 
-    /**
-     * Shows the dialog for editing an existing model.
-     *
-     * @param model The model to be edited.
-     */
+
+
+
+    
     private void showEditModelDialog(AiModel.ModelData model) {
         Dialog<AiModel.ModelData> dialog = new Dialog<>();
         dialog.setTitle("Edit Model");
         dialog.initModality(Modality.APPLICATION_MODAL);
 
+        // Create the custom dialog pane
         DialogPane dialogPane = dialog.getDialogPane();
+        dialogPane.setPrefWidth(700);
         dialogPane.setStyle(String.format(
-                "-fx-background-color: white; " +
-                        "-fx-padding: 24; " +
-                        "-fx-font-family: '%s';",
-                FONT_FAMILY
+            "-fx-background-color: white; " +
+            "-fx-padding: 24; " +
+            "-fx-font-family: '%s';",
+            FONT_FAMILY
         ));
 
         // Form fields with existing values
         TextField idField = createStyledTextField("Model ID");
         idField.setText(model.getId());
         idField.setDisable(true);
+        Label idValidationLabel = new Label();
 
-        TextField nameField = createStyledTextField("Model Name");
+        TextField nameField = createStyledTextField("Model name");
         nameField.setText(model.getName());
+        Label nameValidationLabel = new Label();
 
         TextField modalityField = createStyledTextField("Modality");
         modalityField.setText(model.getModality());
+        Label modalityValidationLabel = new Label();
 
-        TextField latencyField = createStyledTextField("Latency (ms)");
+        TextField latencyField = createStyledTextField("Latency");
         latencyField.setText(String.valueOf(model.getLatency()));
+        Label latencyValidationLabel = new Label();
 
-        TextField costPerTokenField = createStyledTextField("Cost Per Token");
+        TextField costPerTokenField = createStyledTextField("Cost per token");
         costPerTokenField.setText(String.valueOf(model.getCostPerToken()));
+        Label costValidationLabel = new Label();
 
-        TextField apiProviderField = createStyledTextField("API Provider");
+        TextField apiProviderField = createStyledTextField("API provider");
         apiProviderField.setText(model.getApiProvider());
+        Label apiProviderValidationLabel = new Label();
 
-        VBox content = new VBox(16);
-        content.getChildren().addAll(
-                createFormLabel("Model ID"), idField,
-                createFormLabel("Model Name"), nameField,
-                createFormLabel("Modality"), modalityField,
-                createFormLabel("Latency (ms)"), latencyField,
-                createFormLabel("Cost Per Token"), costPerTokenField,
-                createFormLabel("API Provider"), apiProviderField
-
-        );
-
-        dialogPane.setContent(content);
-
+        // Add buttons
         ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
         ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
         dialogPane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
 
+        // Style buttons
         Button saveButton = (Button) dialogPane.lookupButton(saveButtonType);
         Button cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
-
         styleDialogButton(saveButton, PRIMARY_COLOR);
         styleDialogButton(cancelButton, TEXT_SECONDARY);
+
+        // Initially disable save button
+        saveButton.setDisable(true);
+
+        // Create a method to check all validations
+        Runnable validateAllFields = () -> {
+            boolean isNameValid = ValidationUtil.validateNameField(nameField, nameValidationLabel);
+            boolean isModalityValid = ValidationUtil.validateModalityField(modalityField, modalityValidationLabel);
+            boolean isLatencyValid = ValidationUtil.validateLatencyField(latencyField, latencyValidationLabel);
+            boolean isCostValid = ValidationUtil.validateCostField(costPerTokenField, costValidationLabel);
+            boolean isProviderValid = ValidationUtil.validateProviderField(apiProviderField, apiProviderValidationLabel);
+
+            // Enable save button only if all fields are valid
+            saveButton.setDisable(!(isNameValid && isModalityValid && isLatencyValid && 
+                                  isCostValid && isProviderValid));
+        };
+
+        // Add validation listeners
+        nameField.textProperty().addListener((obs, oldVal, newVal) -> validateAllFields.run());
+        modalityField.textProperty().addListener((obs, oldVal, newVal) -> validateAllFields.run());
+        latencyField.textProperty().addListener((obs, oldVal, newVal) -> validateAllFields.run());
+        costPerTokenField.textProperty().addListener((obs, oldVal, newVal) -> validateAllFields.run());
+        apiProviderField.textProperty().addListener((obs, oldVal, newVal) -> validateAllFields.run());
+
+        // Run initial validation
+        validateAllFields.run();
+
+        // Create content layout
+        VBox content = new VBox(20);
+        content.setPadding(new Insets(10));
+        content.setStyle("-fx-background-color: white;");
+
+        // Add form fields
+        content.getChildren().addAll(
+            createFormField("Model ID", idField, idValidationLabel),
+            createFormField("Model Name", nameField, nameValidationLabel),
+            createFormField("Modality", modalityField, modalityValidationLabel),
+            createFormField("Latency (ms)", latencyField, latencyValidationLabel),
+            createFormField("Cost Per Token", costPerTokenField, costValidationLabel),
+            createFormField("API Provider", apiProviderField, apiProviderValidationLabel)
+        );
+
+        // Add content to dialog
+        ScrollPane scrollPane = new ScrollPane(content);
+        scrollPane.setFitToWidth(true);
+        scrollPane.setStyle("-fx-background-color: white;");
+        dialogPane.setContent(scrollPane);
+
+        // Handle result conversion
         dialog.setResultConverter(dialogButton -> {
             if (dialogButton == saveButtonType) {
-                // Validate other fields
-                if (!ValidationUtil.validateNameField(nameField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateModalityField(modalityField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateLatencyField(latencyField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateCostField(costPerTokenField)) {
-                    return null;
-                }
-                if (!ValidationUtil.validateProviderField(apiProviderField)) {
-                    return null;
-                }
-
                 try {
-                    int latency = Integer.parseInt(latencyField.getText());
-                    double costPerToken = Double.parseDouble(costPerTokenField.getText());
                     return new AiModel.ModelData(
-                            idField.getText(), // ID remains the same
-                            nameField.getText(),
-                            modalityField.getText(),
-                            latency,
-                            costPerToken,
-                            apiProviderField.getText()
+                        idField.getText(),
+                        nameField.getText(),
+                        modalityField.getText(),
+                        Integer.parseInt(latencyField.getText()),
+                        Double.parseDouble(costPerTokenField.getText()),
+                        apiProviderField.getText()
                     );
                 } catch (NumberFormatException e) {
-                    ValidationUtil.showTooltip(latencyField, "Invalid number format");
-                    ValidationUtil.showTooltip(costPerTokenField, "Invalid number format");
                     return null;
                 }
             }
             return null;
         });
 
-//        dialog.setResultConverter(dialogButton -> {
-//            if (dialogButton == saveButtonType) {
-//                try {
-//                    int latency = Integer.parseInt(latencyField.getText());
-//                    double costPerToken = Double.parseDouble(costPerTokenField.getText());
-//                    return new AiModel.ModelData(
-//                            idField.getText(),
-//                            nameField.getText(),
-//                            modalityField.getText(),
-//                            latency,
-//                            costPerToken,
-//                            apiProviderField.getText()
-//                            
-//                    );
-//                } catch (NumberFormatException e) {
-//                    showErrorAlert("Invalid input. Please enter valid numbers for latency and cost per token.");
-//                    return null;
-//                }
-//            }
-//            return null;
-//        });
-//
-//        dialog.showAndWait().ifPresent(result -> {
-//            aiModel.updateModel(result);
-//            refreshTable();
-//            addRecentAction("Updated model: " + result.getName());
-//            showSuccessAlert("Model updated successfully!");
-//            updateModelCounts(); // Update the model counts
-//        });
-    }
+        // Show dialog and handle result
+        Optional<AiModel.ModelData> result = dialog.showAndWait();
+        result.ifPresent(updatedModel -> {
+            aiModel.updateModel(updatedModel);
+            refreshTable();
+            addRecentAction("Updated model: " + updatedModel.getName());
+            showSuccessAlert("Model updated successfully!");
+            updateModelCounts();
 
-    /**
-     * Shows a confirmation dialog for deleting a model.
-     *
-     * @param model The model to be deleted.
-     */
-    private void showDeleteConfirmation(AiModel.ModelData model) {
-        Dialog<Boolean> dialog = new Dialog<>();
-        dialog.setTitle("Confirm Delete");
-        dialog.initModality(Modality.APPLICATION_MODAL);
-
-        DialogPane dialogPane = dialog.getDialogPane();
-        dialogPane.setStyle(String.format(
-                "-fx-background-color: white; " +
-                        "-fx-padding: 24; " +
-                        "-fx-font-family: '%s';",
-                FONT_FAMILY
-        ));
-
-        Label messageLabel = new Label("Are you sure you want to delete model '" + model.getName() + "'?");
-        messageLabel.setStyle(String.format(
-                "-fx-font-family: '%s'; " +
-                        "-fx-font-size: 16px; " +
-                        "-fx-text-fill: %s;",
-                FONT_FAMILY,
-                TEXT_PRIMARY.toString().replace("0x", "#")
-        ));
-
-        dialogPane.setContent(messageLabel);
-
-        ButtonType deleteButtonType = new ButtonType("Delete", ButtonBar.ButtonData.OK_DONE);
-        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-        dialogPane.getButtonTypes().addAll(deleteButtonType, cancelButtonType);
-
-        Button deleteButton = (Button) dialogPane.lookupButton(deleteButtonType);
-        Button cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
-
-        styleDialogButton(deleteButton, ERROR_COLOR);
-        styleDialogButton(cancelButton, TEXT_SECONDARY);
-
-        dialog.setResultConverter(dialogButton -> dialogButton == deleteButtonType);
-
-        dialog.showAndWait().ifPresent(result -> {
-            if (result) {
-                aiModel.deleteModel(model.getId());
-                modelTable.getItems().remove(model);
-                deletedModelNames.add(model.getName());
-                addRecentAction("Deleted model: " + model.getName());
-                showSuccessAlert("Model deleted successfully!");
-                updateModelCounts(); // Update the model counts
+            if (modelUpdateListener != null) {
+                modelUpdateListener.onModelUpdated();
             }
         });
     }
+    
+//    /**
+//     * Adjust the addValidationListener method:
+//     *
+//     * @param field           The text field to validate.
+//     * @param validationLabel The label to display validation messages.
+//     * @param validationAction The validation action to perform.
+//     */
+//    private void addValidationListener(TextField field, Label validationLabel, ValidationAction validationAction) {
+//        // Add a listener to the text property of each field
+//        field.textProperty().addListener((obs, oldText, newText) -> {
+//            // Perform validation
+//            boolean isValid = validationAction.validate();
+//            // The validation action should update the validationLabel directly
+//        });
+//
+//        // Add a focus listener to each field for additional validation when focus is lost
+//        field.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
+//            if (wasFocused) {
+//                validationAction.validate();
+//            }
+//        });
+//    }
+//
+//    // Helper method to check if all fields are valid
+//    private boolean areAllFieldsValid(TextField... fields) {
+//        for (TextField field : fields) {
+//            if (field.getText().isEmpty()) {
+//                return false;
+//            }
+//        }
+//        // More specific validation is done by the listeners on each field
+//        return true;
+//    }
+//
+//    /**
+//     * Creates a styled text field for dialogs.
+//     *
+//     * @param prompt The prompt text for the text field.
+//     * @return       A styled TextField.
+//     */
+//    private TextField createStyledTextField(String prompt) {
+//        TextField field = new TextField();
+//        field.setPromptText(prompt);
+//        field.setStyle(String.format(
+//                "-fx-background-color: %s; " +
+//                        "-fx-border-color: %s; " +
+//                        "-fx-border-radius: 8; " +
+//                        "-fx-background-radius: 8; " +
+//                        "-fx-font-family: '%s'; " +
+//                        "-fx-font-size: 14px; " +
+//                        "-fx-padding: 12;",
+//                SECONDARY_COLOR.toString().replace("0x", "#"),
+//                BORDER_COLOR.toString().replace("0x", "#"),
+//                FONT_FAMILY
+//        ));
+//        return field;
+//    }
 
-    /**
-     * Creates a styled text field for dialogs.
-     *
-     * @param prompt The prompt text for the text field.
-     * @return       A styled TextField.
-     */
-    private TextField createStyledTextField(String prompt) {
-        TextField field = new TextField();
-        field.setPromptText(prompt);
-        field.setStyle(String.format(
-                "-fx-background-color: %s; " +
-                        "-fx-border-color: %s; " +
-                        "-fx-border-radius: 8; " +
-                        "-fx-background-radius: 8; " +
-                        "-fx-font-family: '%s'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-padding: 12;",
-                SECONDARY_COLOR.toString().replace("0x", "#"),
-                BORDER_COLOR.toString().replace("0x", "#"),
-                FONT_FAMILY
-        ));
-        return field;
-    }
-
-    /**
-     * Creates a styled label for form fields.
-     *
-     * @param text The text of the label.
-     * @return     A styled Label.
-     */
-    private Label createFormLabel(String text) {
-        Label label = new Label(text);
-        label.setStyle(String.format(
-                "-fx-font-family: '%s'; " +
-                        "-fx-font-size: 14px; " +
-                        "-fx-font-weight: bold; " +
-                        "-fx-text-fill: %s;",
-                FONT_FAMILY,
-                TEXT_PRIMARY.toString().replace("0x", "#")
-        ));
-        return label;
-    }
+    
 
     /**
      * Styles a dialog button.
@@ -1128,14 +1352,8 @@ public class AdminDashboardPane extends BorderPane {
         showAlert("Success", message, SUCCESS_COLOR);
     }
 
-    /**
-     * Shows an error alert.
-     *
-     * @param message The message to be displayed in the alert.
-     */
-    private void showErrorAlert(String message) {
-        showAlert("Error", message, ERROR_COLOR);
-    }
+    
+    
 
     /**
      * Shows a custom alert dialog.
@@ -1176,16 +1394,30 @@ public class AdminDashboardPane extends BorderPane {
 
         alert.showAndWait();
     }
-
+    
     /**
-     * Adds a recent action to the recent actions list.
-     *
-     * @param action The action to be added.
-     */
-    private void addRecentAction(String action) {
-        recentActionsList.getItems().add(0, action);
-        if (recentActionsList.getItems().size() > 10) {
-            recentActionsList.getItems().remove(10, recentActionsList.getItems().size());
+ * Shows a confirmation dialog for deleting a model.
+ *
+ * @param data The ModelData to be deleted.
+ */
+    private void showDeleteConfirmation(AiModel.ModelData data) {
+        Alert alert = new Alert(Alert.AlertType.CONFIRMATION);
+        alert.setTitle("Delete Model");
+        alert.setHeaderText("Are you sure you want to delete this model?");
+        alert.setContentText("Model ID: " + data.getId() + "\nModel Name: " + data.getName());
+
+        Optional<ButtonType> result = alert.showAndWait();
+        if (result.isPresent() && result.get() == ButtonType.OK) {
+            // User confirmed deletion
+            aiModel.deleteModel(data.getId()); // Assuming you have a deleteModel method in your AiModel class
+            modelTable.getItems().remove(data); // Remove from the table view
+            addRecentAction("Deleted model: " + data.getName());
+            showSuccessAlert("Model deleted successfully!");
+            updateModelCounts();
+
+            if (modelUpdateListener != null) {
+                modelUpdateListener.onModelUpdated();
+            }
         }
     }
 
@@ -1204,4 +1436,22 @@ public class AdminDashboardPane extends BorderPane {
     public Scene createScene() {
         return new Scene(this);
     }
+
+
+    
+
+    // Add similar validation listeners and saveButton enabling logic in showEditModelDialog() as well
+
+    
+
+//    @FunctionalInterface
+//    private interface ValidationAction {
+//        boolean validate();
+//    }
 }
+
+
+
+
+
+

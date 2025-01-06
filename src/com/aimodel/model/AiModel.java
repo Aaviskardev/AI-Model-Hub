@@ -4,7 +4,7 @@ import java.util.ArrayList;
 
 /**
  *
- * @author Aaviskar
+ * @author Aaviskar  23048648
  */
 
 /**
@@ -33,6 +33,7 @@ public class AiModel {
         modelDataList.add(new ModelData("4", "GPT-40", "Multimodal", 2, 0.15, "OpenAI"));
         modelDataList.add(new ModelData("5", "Sora", "Video", 6, 50, "OpenAI"));
     }
+
 
     /**
      * Interface for listeners that need to be notified of model data changes.
@@ -298,6 +299,17 @@ public class AiModel {
          */
         public void setApiProvider(String apiProvider) {
             this.apiProvider = apiProvider;
+        }
+        @Override
+        public String toString() {
+            return "ModelData{" +
+                   "id='" + id + '\'' +
+                   ", name='" + name + '\'' +
+                   ", modality='" + modality + '\'' +
+                   ", latency=" + latency +
+                   ", costPerToken=" + costPerToken +
+                   ", apiProvider='" + apiProvider + '\'' +
+                   '}';
         }
     }
 }

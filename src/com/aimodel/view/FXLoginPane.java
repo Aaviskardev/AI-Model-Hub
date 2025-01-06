@@ -28,9 +28,8 @@ import javafx.animation.Interpolator;
 
 /**
  *
- * @author Aaviskar
+ * @author Aaviskar  23048648
  */
-
 /**
  * FXLoginPane is a custom JavaFX StackPane that provides a login interface with a modern UI.
  * It includes features such as a background image, glassmorphism effect, and input validation.
