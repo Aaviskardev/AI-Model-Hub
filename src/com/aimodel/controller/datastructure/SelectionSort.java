@@ -93,7 +93,7 @@ public class SelectionSort {
         int len1 = str1.length();
         int len2 = str2.length();
         int lim = Math.min(len1, len2);
-
+        
         // Compare characters one by one.
         for (int k = 0; k < lim; k++) {
             char c1 = str1.charAt(k);
@@ -102,8 +102,9 @@ public class SelectionSort {
                 return c1 - c2;
             }
         }
-
+        
         // If all characters are equal up to the minimum length, the shorter string is considered smaller.
         return len1 - len2;
     }
 }
+

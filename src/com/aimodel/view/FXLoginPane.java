@@ -1,7 +1,4 @@
 
-
-
-
 package com.aimodel.view;
 
 import javafx.scene.control.*;
@@ -83,7 +80,7 @@ public class FXLoginPane extends StackPane {
 
         // Glassmorphism style
         loginBox.setStyle(
-            "-fx-background-color: rgba(255, 255, 255, 0.15); " +
+            "-fx-background-color: rgba(255, 255, 255, 0); " +
             "-fx-background-radius: 20; " +
             "-fx-border-radius: 20; " +
             "-fx-border-color: rgba(255, 255, 255, 0.3); " +
@@ -114,6 +111,7 @@ public class FXLoginPane extends StackPane {
         messageLabel.setFont(Font.font("Arial", 14));
         messageLabel.setTextFill(Color.WHITE);
         messageLabel.setVisible(false);
+        
 
         // Create label containers with proper spacing
         VBox usernameContainer = new VBox(8);

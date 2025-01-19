@@ -167,7 +167,6 @@ public class HomePage extends JFrame {
      */
     private void initAiModel() {
         aiModel = new AiModel();
-        // Data can be loaded from a file or database here if needed
     }
 
     /**
@@ -288,9 +287,9 @@ public class HomePage extends JFrame {
      * @param args Command-line arguments (not used in this application).
      */
     public static void main(String[] args) {
-        SwingUtilities.invokeLater(() -> {
+
             HomePage homePage = new HomePage();
             homePage.setVisible(true);
-        });
+        
     }
 }

@@ -61,18 +61,33 @@ public class AboutUsPanel extends JPanel {
      * main heading, subheading, and background GIF.
      */
     private void initializeComponents() {
-        // Create a layered pane to hold the background and content
+            // Create a layered pane to hold the background and content
         JLayeredPane layeredPane = new JLayeredPane();
         layeredPane.setLayout(null);
         layeredPane.setPreferredSize(new Dimension(1000, 600));
-        layeredPane.setBackground(new Color(255, 255, 255));
 
-        // Create a content panel to hold the components
+        // Set the background to match the grayish-white we see in the image
+        Color bgColor = new Color(248, 248, 248);  // Slightly off-white to match the outer area
+        layeredPane.setBackground(bgColor);
+        setBackground(bgColor);
+
         contentPanel = new JPanel();
         contentPanel.setLayout(null);
         contentPanel.setOpaque(false);
         contentPanel.setBounds(0, 0, 1000, 600);
-        contentPanel.setBackground(new Color(255, 255, 255));
+
+        // The GIF needs to fill the entire space
+        try {
+            ImageIcon gifIcon = new ImageIcon(getClass().getResource("/com/aimodel/resources/aboutus.gif"));
+            backgroundLabel = new JLabel(gifIcon);
+            backgroundLabel.setBounds(0, 0, 1000, 600); // Ensure it fills everything
+            layeredPane.add(backgroundLabel, JLayeredPane.DEFAULT_LAYER);
+        } catch (Exception e) {
+            System.err.println("Error loading GIF: " + e.getMessage());
+        }
+        
+
+
 
         // Brand logo
         ImageIcon brandLogoIcon = new ImageIcon(getClass().getResource("/com/aimodel/resources/brandlogo.png"));
@@ -89,6 +104,7 @@ public class AboutUsPanel extends JPanel {
         viewModelButton.setBounds(790, 20, 105, 30);
         contentPanel.add(viewModelButton);
 
+
         loginButton = createLoginButton();
         loginButton.setBounds(900, 20, 75, 30);
         contentPanel.add(loginButton);
@@ -97,25 +113,17 @@ public class AboutUsPanel extends JPanel {
         JLabel mainHeading = new JLabel("We collect data on different AI models.");
         mainHeading.setFont(new Font("Arial", Font.BOLD, 20));
         mainHeading.setForeground(new Color(51, 51, 51));
-        mainHeading.setBounds(99, 110, 400, 30); // Further adjusted X and Y
+        mainHeading.setBounds(20, 110, 400, 30); // Further adjusted X and Y
         contentPanel.add(mainHeading);
 
         // Subheading - "Saving cost, time and compute"
-        JLabel subHeading = new JLabel("Saving cost, time and compute.");
+        JLabel subHeading = new JLabel("Saving cost time compute.");
         subHeading.setFont(new Font("Arial", Font.BOLD, 20));
         subHeading.setForeground(new Color(51, 51, 51));
-        subHeading.setBounds(600, 380, 300, 30); // Further adjusted X and Y
+        subHeading.setBounds(725, 380, 300, 30); // Further adjusted X and Y
         contentPanel.add(subHeading);
 
-        // Background GIF
-        try {
-            ImageIcon gifIcon = new ImageIcon(getClass().getResource("/com/aimodel/resources/aboutus.gif.gif"));
-            backgroundLabel = new JLabel(gifIcon);
-            backgroundLabel.setBounds(0, 0, 1000, 600);
-            layeredPane.add(backgroundLabel, JLayeredPane.DEFAULT_LAYER);
-        } catch (Exception e) {
-            System.err.println("Error loading GIF: " + e.getMessage());
-        }
+        
 
         // Add the content panel to the layered pane
         layeredPane.add(contentPanel, JLayeredPane.PALETTE_LAYER);

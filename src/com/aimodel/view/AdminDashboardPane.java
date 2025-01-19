@@ -2,7 +2,7 @@
 package com.aimodel.view;
 
 import com.aimodel.model.AiModel;
-import com.aimodel.util.CustomStack;
+import com.aimodel.controller.datastructure.CustomStack;
 import javafx.animation.*;
 import javafx.collections.FXCollections;
 import javafx.geometry.*;
@@ -16,6 +16,7 @@ import javafx.scene.shape.*;
 import javafx.stage.Modality;
 import javafx.util.Duration;
 import com.aimodel.util.ValidationUtil;
+import javafx.application.Platform;
 
 import java.util.*;
 
@@ -43,14 +44,12 @@ public class AdminDashboardPane extends BorderPane {
     // Modern UI Constants
     private static final String FONT_FAMILY = "SF Pro Display, -apple-system, BlinkMacSystemFont, Segoe UI";
     private static final Color PRIMARY_COLOR = Color.web("#6366F1");
-    private static final Color SECONDARY_COLOR = Color.web("#F3F4F6");
     private static final Color ACCENT_COLOR = Color.web("#4F46E5");
     private static final Color SUCCESS_COLOR = Color.web("#10B981");
     private static final Color ERROR_COLOR = Color.web("#EF4444");
     private static final Color TEXT_PRIMARY = Color.web("#111827");
     private static final Color TEXT_SECONDARY = Color.web("#6B7280");
     private static final Color BORDER_COLOR = Color.web("#E5E7EB");
-
     private static final Color BACKGROUND_COLOR = Color.web("#E5F0FA");
 
     /**
@@ -338,7 +337,7 @@ public class AdminDashboardPane extends BorderPane {
      */
     private void updateModelCounts() {
         int totalModels = aiModel.getModelDataList().size();
-        int activeModels = calculateActiveModelsCount(); // You might need a method in AiModel to determine this
+        int activeModels = calculateActiveModelsCount(); 
 
         totalModelsValueLabel.setText(String.valueOf(totalModels));
         activeModelsValueLabel.setText(String.valueOf(activeModels));
@@ -642,6 +641,7 @@ public class AdminDashboardPane extends BorderPane {
 
         return button;
     }
+    
 
     /**
      * Creates the card for displaying recent actions.
@@ -650,7 +650,7 @@ public class AdminDashboardPane extends BorderPane {
      */
     private VBox createRecentActionsCard() {
         VBox card = new VBox(20);
-        card.setPrefWidth(300);
+        card.setPrefWidth(390);
         card.setStyle(
                 "-fx-background-color: white; " +
                         "-fx-background-radius: 16; " +
@@ -658,7 +658,11 @@ public class AdminDashboardPane extends BorderPane {
                         "-fx-padding: 24;"
         );
 
-        Label title = new Label("Recent Actions");
+        // Create header with title and clear button
+        HBox header = new HBox(10);
+        header.setAlignment(Pos.CENTER_LEFT);
+
+        Label title = new Label("Actions");
         title.setStyle(String.format(
                 "-fx-font-family: '%s'; " +
                         "-fx-font-size: 20px; " +
@@ -668,6 +672,23 @@ public class AdminDashboardPane extends BorderPane {
                 TEXT_PRIMARY.toString().replace("0x", "#")
         ));
 
+        Button clearButton = new Button("Clear");
+        clearButton.setStyle(
+                "-fx-background-color: transparent; " +
+                        "-fx-text-fill: #FF5252; " +
+                        "-fx-font-family: '" + FONT_FAMILY + "'; " +
+                        "-fx-font-size: 14px; " +
+                        "-fx-cursor: hand;"
+        );
+
+        clearButton.setOnAction(e -> {
+            recentActionsStack.clear();
+            refreshRecentActionsList();
+        });
+
+        header.getChildren().addAll(title, new Region(), clearButton);
+        HBox.setHgrow(header.getChildren().get(1), Priority.ALWAYS);
+
         recentActionsList = new ListView<>();
         recentActionsList.setStyle(
                 "-fx-background-color: transparent; " +
@@ -676,7 +697,6 @@ public class AdminDashboardPane extends BorderPane {
                         "-fx-border-color: transparent;"
         );
 
-        // Custom cell factory for recent actions
         recentActionsList.setCellFactory(list -> new ListCell<>() {
             @Override
             protected void updateItem(String item, boolean empty) {
@@ -699,50 +719,41 @@ public class AdminDashboardPane extends BorderPane {
             }
         });
 
-        recentActionsList.setItems(FXCollections.observableArrayList(getRecentActionsFromStack()));
-
         VBox.setVgrow(recentActionsList, Priority.ALWAYS);
-        card.getChildren().addAll(title, recentActionsList);
+        card.getChildren().addAll(header, recentActionsList);
 
+        refreshRecentActionsList();
         return card;
     }
 
     /**
-     * Adds a recent action to the recent actions list (now using the stack).
+     * Adds a recent action to the stack and updates the UI.
      *
      * @param action The action to be added.
      */
     private void addRecentAction(String action) {
-        recentActionsStack.push(action); // Push onto the stack
-        refreshRecentActionsList(); // Update the ListView
+        if (action != null && !action.trim().isEmpty()) {
+            recentActionsStack.push(action);
+            refreshRecentActionsList();
+        }
     }
 
     /**
-     * Gets recent actions from the stack (up to 10).
+     * Gets recent actions from the stack in correct order.
      * @return A list of recent actions.
      */
     private List<String> getRecentActionsFromStack() {
-        List<String> actions = new ArrayList<>();
-        CustomStack<String> tempStack = new CustomStack<>();
-
-        // Get up to 10 actions
-        for (int i = 0; i < 10 && !recentActionsStack.isEmpty(); i++) {
-            String action = recentActionsStack.pop();
-            actions.add(action);
-            tempStack.push(action);
-        }
-
-        // Restore the original stack
-        while (!tempStack.isEmpty()) {
-            recentActionsStack.push(tempStack.pop());
-        }
-
-        Collections.reverse(actions);
+        List<String> actions = recentActionsStack.getRecentItems();
         return actions;
     }
 
+    /**
+     * Refreshes the ListView with current stack contents.
+     */
     private void refreshRecentActionsList() {
-        recentActionsList.setItems(FXCollections.observableArrayList(getRecentActionsFromStack()));
+        Platform.runLater(() -> {
+            recentActionsList.setItems(FXCollections.observableArrayList(getRecentActionsFromStack()));
+        });
     }
 
     /**
@@ -775,8 +786,6 @@ public class AdminDashboardPane extends BorderPane {
      * @param model The model to be edited.
      */
  
-
-
     private HBox createFormField(String labelText, TextField field, Label validationLabel) {
         // Create container
         HBox hbox = new HBox();
@@ -811,130 +820,7 @@ public class AdminDashboardPane extends BorderPane {
         return hbox;
     }
 
-//    private void showAddModelDialog() {
-//        Dialog<AiModel.ModelData> dialog = new Dialog<>();
-//        dialog.setTitle("Add New Model");
-//        dialog.initModality(Modality.APPLICATION_MODAL);
-//
-//        // Create the custom dialog pane
-//        DialogPane dialogPane = dialog.getDialogPane();
-//        dialogPane.setPrefWidth(700); // Set fixed width for dialog
-//        dialogPane.setStyle(String.format(
-//            "-fx-background-color: white; " +
-//            "-fx-padding: 24; " +
-//            "-fx-font-family: '%s';",
-//            FONT_FAMILY
-//        ));
-//
-//        // Form fields
-//        TextField idField = createStyledTextField("Enter model ID");
-//        Label idValidationLabel = new Label();
-//
-//        TextField nameField = createStyledTextField("Enter model name");
-//        Label nameValidationLabel = new Label();
-//
-//        TextField modalityField = createStyledTextField("Enter modality");
-//        Label modalityValidationLabel = new Label();
-//
-//        TextField latencyField = createStyledTextField("Enter latency in ms");
-//        Label latencyValidationLabel = new Label();
-//
-//        TextField costPerTokenField = createStyledTextField("Enter cost per token");
-//        Label costValidationLabel = new Label();
-//
-//        TextField apiProviderField = createStyledTextField("Enter API provider");
-//        Label apiProviderValidationLabel = new Label();
-//
-//        // Add validation listeners
-//        addValidationListener(idField, idValidationLabel, 
-//            () -> ValidationUtil.validateIdField(idField, aiModel, idValidationLabel));
-//        addValidationListener(nameField, nameValidationLabel, 
-//            () -> ValidationUtil.validateNameField(nameField, nameValidationLabel));
-//        addValidationListener(modalityField, modalityValidationLabel, 
-//            () -> ValidationUtil.validateModalityField(modalityField, modalityValidationLabel));
-//        addValidationListener(latencyField, latencyValidationLabel, 
-//            () -> ValidationUtil.validateLatencyField(latencyField, latencyValidationLabel));
-//        addValidationListener(costPerTokenField, costValidationLabel, 
-//            () -> ValidationUtil.validateCostField(costPerTokenField, costValidationLabel));
-//        addValidationListener(apiProviderField, apiProviderValidationLabel, 
-//            () -> ValidationUtil.validateProviderField(apiProviderField, apiProviderValidationLabel));
-//
-//        // Create content layout
-//        VBox content = new VBox(20); // Increased spacing between fields
-//        content.setPadding(new Insets(10));
-//        content.setStyle("-fx-background-color: white;");
-//
-//        // Add form fields
-//        content.getChildren().addAll(
-//            createFormField("Model ID", idField, idValidationLabel),
-//            createFormField("Model Name", nameField, nameValidationLabel),
-//            createFormField("Modality", modalityField, modalityValidationLabel),
-//            createFormField("Latency (ms)", latencyField, latencyValidationLabel),
-//            createFormField("Cost Per Token", costPerTokenField, costValidationLabel),
-//            createFormField("API Provider", apiProviderField, apiProviderValidationLabel)
-//        );
-//
-//        // Add content to dialog
-//        ScrollPane scrollPane = new ScrollPane(content);
-//        scrollPane.setFitToWidth(true);
-//        scrollPane.setStyle("-fx-background-color: white;");
-//        dialogPane.setContent(scrollPane);
-//
-//        // Add buttons
-//        ButtonType saveButtonType = new ButtonType("Save", ButtonBar.ButtonData.OK_DONE);
-//        ButtonType cancelButtonType = new ButtonType("Cancel", ButtonBar.ButtonData.CANCEL_CLOSE);
-//        dialogPane.getButtonTypes().addAll(saveButtonType, cancelButtonType);
-//
-//        // Style buttons
-//        Button saveButton = (Button) dialogPane.lookupButton(saveButtonType);
-//        Button cancelButton = (Button) dialogPane.lookupButton(cancelButtonType);
-//        styleDialogButton(saveButton, PRIMARY_COLOR);
-//        styleDialogButton(cancelButton, TEXT_SECONDARY);
-//
-//        // Initially disable save button
-//        saveButton.setDisable(true);
-//
-//        // Enable save button when all fields are valid
-//        TextField[] fields = {idField, nameField, modalityField, latencyField, costPerTokenField, apiProviderField};
-//        for (TextField field : fields) {
-//            field.textProperty().addListener((obs, old, newVal) -> 
-//                saveButton.setDisable(!areAllFieldsValid(fields)));
-//        }
-//
-//        // Handle result conversion
-//        dialog.setResultConverter(dialogButton -> {
-//            if (dialogButton == saveButtonType && areAllFieldsValid(fields)) {
-//                try {
-//                    return new AiModel.ModelData(
-//                        idField.getText(),
-//                        nameField.getText(),
-//                        modalityField.getText(),
-//                        Integer.parseInt(latencyField.getText()),
-//                        Double.parseDouble(costPerTokenField.getText()),
-//                        apiProviderField.getText()
-//                    );
-//                } catch (NumberFormatException e) {
-//                    return null;
-//                }
-//            }
-//            return null;
-//        });
-//
-//        // Show dialog and handle result
-//        Optional<AiModel.ModelData> result = dialog.showAndWait();
-//        result.ifPresent(newModel -> {
-//            aiModel.addModel(newModel);
-//            modelTable.getItems().add(newModel);
-//            addRecentAction("Added new model: " + newModel.getName());
-//            showSuccessAlert("Model added successfully!");
-//            updateModelCounts();
-//
-//            if (modelUpdateListener != null) {
-//                modelUpdateListener.onModelUpdated();
-//            }
-//        });
-//    }
-    
+
 
     private void showAddModelDialog() {
         Dialog<AiModel.ModelData> dialog = new Dialog<>();
@@ -1257,63 +1143,6 @@ public class AdminDashboardPane extends BorderPane {
         });
     }
     
-//    /**
-//     * Adjust the addValidationListener method:
-//     *
-//     * @param field           The text field to validate.
-//     * @param validationLabel The label to display validation messages.
-//     * @param validationAction The validation action to perform.
-//     */
-//    private void addValidationListener(TextField field, Label validationLabel, ValidationAction validationAction) {
-//        // Add a listener to the text property of each field
-//        field.textProperty().addListener((obs, oldText, newText) -> {
-//            // Perform validation
-//            boolean isValid = validationAction.validate();
-//            // The validation action should update the validationLabel directly
-//        });
-//
-//        // Add a focus listener to each field for additional validation when focus is lost
-//        field.focusedProperty().addListener((obs, wasFocused, isNowFocused) -> {
-//            if (wasFocused) {
-//                validationAction.validate();
-//            }
-//        });
-//    }
-//
-//    // Helper method to check if all fields are valid
-//    private boolean areAllFieldsValid(TextField... fields) {
-//        for (TextField field : fields) {
-//            if (field.getText().isEmpty()) {
-//                return false;
-//            }
-//        }
-//        // More specific validation is done by the listeners on each field
-//        return true;
-//    }
-//
-//    /**
-//     * Creates a styled text field for dialogs.
-//     *
-//     * @param prompt The prompt text for the text field.
-//     * @return       A styled TextField.
-//     */
-//    private TextField createStyledTextField(String prompt) {
-//        TextField field = new TextField();
-//        field.setPromptText(prompt);
-//        field.setStyle(String.format(
-//                "-fx-background-color: %s; " +
-//                        "-fx-border-color: %s; " +
-//                        "-fx-border-radius: 8; " +
-//                        "-fx-background-radius: 8; " +
-//                        "-fx-font-family: '%s'; " +
-//                        "-fx-font-size: 14px; " +
-//                        "-fx-padding: 12;",
-//                SECONDARY_COLOR.toString().replace("0x", "#"),
-//                BORDER_COLOR.toString().replace("0x", "#"),
-//                FONT_FAMILY
-//        ));
-//        return field;
-//    }
 
     
 
@@ -1409,8 +1238,8 @@ public class AdminDashboardPane extends BorderPane {
         Optional<ButtonType> result = alert.showAndWait();
         if (result.isPresent() && result.get() == ButtonType.OK) {
             // User confirmed deletion
-            aiModel.deleteModel(data.getId()); // Assuming you have a deleteModel method in your AiModel class
-            modelTable.getItems().remove(data); // Remove from the table view
+            aiModel.deleteModel(data.getId()); 
+            modelTable.getItems().remove(data); 
             addRecentAction("Deleted model: " + data.getName());
             showSuccessAlert("Model deleted successfully!");
             updateModelCounts();
@@ -1437,17 +1266,6 @@ public class AdminDashboardPane extends BorderPane {
         return new Scene(this);
     }
 
-
-    
-
-    // Add similar validation listeners and saveButton enabling logic in showEditModelDialog() as well
-
-    
-
-//    @FunctionalInterface
-//    private interface ValidationAction {
-//        boolean validate();
-//    }
 }
 
 
